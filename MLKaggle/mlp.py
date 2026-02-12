@@ -15,7 +15,7 @@ from tensorflow import keras
 
 # -----------------------------
 # 0) Repro + (optional) CPU thread sanity
-# -----------------------------
+# ----------------------------
 SEED = 42
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
@@ -27,8 +27,8 @@ tf.random.set_seed(SEED)
 # -----------------------------
 # 1) Load
 # -----------------------------
-train_gdf = gpd.read_file("train.geojson")
-test_gdf  = gpd.read_file("test.geojson")
+train_gdf = gpd.read_file("data/train.geojson")
+test_gdf  = gpd.read_file("data/test.geojson")
 
 change_type_map = {
     'Demolition': 0, 'Road': 1, 'Residential': 2,
@@ -162,6 +162,9 @@ def to_dense(X):
 X_train = to_dense(preprocess.fit_transform(train_feat))
 X_test  = to_dense(preprocess.transform(test_feat))
 
+
+
+
 # -----------------------------
 # 4) MLP model builder
 # -----------------------------
@@ -193,7 +196,7 @@ def build_mlp(input_dim: int,
 # -----------------------------
 # 5) Manual CV tuning (small grid, early stopping)
 # -----------------------------
-f1_macro = make_scorer(f1_score, average="macro")
+f1_weighted = make_scorer(f1_score, average="weighted")
 
 # Toggle for faster iterative tuning vs. final run
 FAST_MODE = True
@@ -203,9 +206,45 @@ cv = StratifiedKFold(n_splits=3 if FAST_MODE else 5, shuffle=True, random_state=
 
 if FAST_MODE:
     param_grid = [
-        {"hidden_units": (128, 64), "dropout": 0.2, "lr": 1e-3, "l2": 1e-5},
-        {"hidden_units": (256, 128), "dropout": 0.3, "lr": 1e-3, "l2": 1e-5},
-    ]
+    # Small / shallow network
+    {"hidden_units": (64, 32),   "dropout": 0.1, "lr": 1e-3,   "l2": 1e-5},
+    {"hidden_units": (64, 32),   "dropout": 0.2, "lr": 5e-4,  "l2": 1e-5},
+    {"hidden_units": (64, 32),   "dropout": 0.15,"lr": 1e-3,  "l2": 5e-6},
+
+    # Medium network
+    {"hidden_units": (128, 64),  "dropout": 0.2, "lr": 1e-3,   "l2": 1e-5},
+    {"hidden_units": (128, 64),  "dropout": 0.3, "lr": 5e-4,  "l2": 5e-6},
+    {"hidden_units": (128, 64),  "dropout": 0.25,"lr": 1e-3,  "l2": 1e-6},
+
+    # Larger / deeper
+    {"hidden_units": (256, 128), "dropout": 0.2, "lr": 1e-3,   "l2": 1e-5},
+    {"hidden_units": (256, 128), "dropout": 0.3, "lr": 5e-4,  "l2": 5e-6},
+    {"hidden_units": (256, 128), "dropout": 0.25,"lr": 1e-3,  "l2": 1e-6},
+
+    # Very large network
+    {"hidden_units": (512, 256), "dropout": 0.3, "lr": 5e-4,  "l2": 1e-5},
+    {"hidden_units": (512, 256), "dropout": 0.4, "lr": 1e-4,  "l2": 1e-6},
+
+    # Deep + narrow (focus here)
+    {"hidden_units": (128, 128, 64), "dropout": 0.2, "lr": 1e-3, "l2": 1e-5},
+    {"hidden_units": (128, 128, 64), "dropout": 0.3, "lr": 5e-4, "l2": 1e-5},
+    {"hidden_units": (128, 128, 64), "dropout": 0.25,"lr": 1e-3, "l2": 5e-6},
+    {"hidden_units": (128, 128, 64), "dropout": 0.35,"lr": 5e-4, "l2": 5e-6},
+
+    {"hidden_units": (256, 128, 64), "dropout": 0.2, "lr": 1e-3, "l2": 5e-6},
+    {"hidden_units": (256, 128, 64), "dropout": 0.3, "lr": 5e-4, "l2": 5e-6},
+    {"hidden_units": (256, 128, 64), "dropout": 0.25,"lr": 1e-3, "l2": 1e-6},
+    {"hidden_units": (256, 128, 64), "dropout": 0.35,"lr": 5e-4, "l2": 1e-6},
+
+    {"hidden_units": (128, 128, 128, 64), "dropout": 0.3, "lr": 5e-4, "l2": 1e-5},
+    {"hidden_units": (128, 128, 128, 64), "dropout": 0.35,"lr": 5e-4, "l2": 5e-6},
+    {"hidden_units": (128, 128, 128, 64), "dropout": 0.25,"lr": 1e-3, "l2": 1e-6},
+
+    {"hidden_units": (256, 128, 128, 64), "dropout": 0.3, "lr": 1e-3, "l2": 5e-6},
+    {"hidden_units": (256, 128, 128, 64), "dropout": 0.35,"lr": 5e-4, "l2": 1e-6},
+]
+
+
 else:
     param_grid = [
         {"hidden_units": (256, 128), "dropout": 0.2, "lr": 1e-3, "l2": 1e-5},
@@ -250,15 +289,16 @@ for params in param_grid:
 
         prob = model.predict(X_va, verbose=0)
         pred = prob.argmax(axis=1)
-        fold_scores.append(f1_score(y_va, pred, average="macro"))
+        fold_scores.append(f1_score(y_va, pred, average="weighted"))
 
     mean_f1 = float(np.mean(fold_scores))
-    print(f"params={params} -> CV macro-F1={mean_f1:.4f}")
+    print(f"params={params} -> CV weighted-F1={mean_f1:.4f}")
+    
     if mean_f1 > best_score:
         best_score = mean_f1
         best_params = params
 
-print(f"\nBest MLP CV macro-F1={best_score:.4f} with params={best_params}")
+print(f"\nBest MLP CV weighted-F1={best_score:.4f} with params={best_params}")
 
 if FAST_MODE and REFINE_STAGE:
     # Build a narrower grid around the best fast params
@@ -302,15 +342,15 @@ if FAST_MODE and REFINE_STAGE:
 
             prob = model.predict(X_va, verbose=0)
             pred = prob.argmax(axis=1)
-            fold_scores.append(f1_score(y_va, pred, average="macro"))
+            fold_scores.append(f1_score(y_va, pred, average="weighted"))
 
         mean_f1 = float(np.mean(fold_scores))
-        print(f"refine params={params} -> CV macro-F1={mean_f1:.4f}")
+        print(f"refine params={params} -> CV weighted-F1={mean_f1:.4f}")
         if mean_f1 > best_score:
             best_score = mean_f1
             best_params = params
 
-    print(f"\nRefine best MLP CV macro-F1={best_score:.4f} with params={best_params}")
+    print(f"\nRefine best MLP CV weighted-F1={best_score:.4f} with params={best_params}")
 
 # -----------------------------
 # 6) Train best on full data + predict test + submission
@@ -334,9 +374,13 @@ final_model.fit(
     ],
 )
 
+final_model.save("mlp_model_full.keras")
 test_prob = final_model.predict(X_test, verbose=0)
 test_pred = test_prob.argmax(axis=1)
 
-sub = pd.DataFrame({"Id": np.arange(1, len(test_pred) + 1), "change_type": test_pred})
+sub = pd.DataFrame({"Id": np.arange(0, len(test_pred)), "change_type": test_pred})
 sub.to_csv("sample_submission.csv", index=False)
 print("Wrote sample_submission.csv")
+
+
+## Final {"hidden_units": (256, 128), "dropout": 0.2, "lr": 1e-3,   "l2": 1e-5} ??
