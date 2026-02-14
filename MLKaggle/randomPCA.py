@@ -13,8 +13,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 
 # ---------- 1) Load ----------
-train_gdf = gpd.read_file("train.geojson")
-test_gdf  = gpd.read_file("test.geojson")
+train_gdf = gpd.read_file("data/train.geojson")
+test_gdf  = gpd.read_file("data/test.geojson")
 
 change_type_map = {
     'Demolition': 0, 'Road': 1, 'Residential': 2,
@@ -162,6 +162,6 @@ print("Modèle entraîné avec PCA (90% variance)")
 # ---------- 9) Predict ----------
 pred_test = pipe_pca.predict(test_feat)
 sub = pd.DataFrame({"Id": np.arange(len(pred_test)), "change_type": pred_test})
-sub.to_csv("sample_submission_rf_pca.csv", index=False)
-joblib.dump(pipe_pca, "model_rf_pca.joblib")
+sub.to_csv("submission_solo/sample_submission_rf_pca.csv", index=False)
+joblib.dump(pipe_pca, "model/model_rf_pca.joblib")
 print("Fichier sample_submission_rf_pca.csv écrit et modèle sauvegardé.")

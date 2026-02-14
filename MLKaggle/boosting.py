@@ -17,8 +17,8 @@ from sklearn.utils import resample
 
 
 # ---------- 1) Load ----------
-train_gdf = gpd.read_file("train.geojson")
-test_gdf  = gpd.read_file("test.geojson")
+train_gdf = gpd.read_file("data/train.geojson")
+test_gdf  = gpd.read_file("data/test.geojson")
 
 
 
@@ -286,6 +286,6 @@ best_model = best_search.best_estimator_
 pred = best_model.predict(test_feat)
 
 sub = pd.DataFrame({"Id": np.arange(1, len(pred) + 1), "change_type": pred})
-sub.to_csv("sample_submission.csv", index=False)
-joblib.dump(best_model, "model_boost.joblib")
-print("Wrote sample_submission.csv")
+sub.to_csv("submission_solo/sample_submission_boost.csv", index=False)
+joblib.dump(best_model, "model/model_boost.joblib")
+print("Wrote sample_submission_boost.csv")

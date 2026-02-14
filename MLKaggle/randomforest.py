@@ -16,8 +16,8 @@ from sklearn.metrics import classification_report
 from sklearn.preprocessing import FunctionTransformer
 
 # ---------- 1) Load ----------
-train_gdf = gpd.read_file("train.geojson")
-test_gdf  = gpd.read_file("test.geojson")
+train_gdf = gpd.read_file("data/train.geojson")
+test_gdf  = gpd.read_file("data/test.geojson")
 
 
 
@@ -264,6 +264,6 @@ best_model = best_search.best_estimator_
 pred = best_model.predict(test_feat)
 
 sub = pd.DataFrame({"Id": np.arange(0, len(pred)), "change_type": pred})
-sub.to_csv("sample_submission_rf_1.csv", index=False)
-joblib.dump(best_model, "model_rf.joblib")
+sub.to_csv("submission_solo/sample_submission_rf_1.csv", index=False)
+joblib.dump(best_model, "model/model_rf.joblib")
 print("Wrote sample_submission_rf_1.csv")

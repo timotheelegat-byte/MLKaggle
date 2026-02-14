@@ -374,13 +374,13 @@ final_model.fit(
     ],
 )
 
-final_model.save("mlp_model_full.keras")
+final_model.save("model/mlp_model_full.keras")
 test_prob = final_model.predict(X_test, verbose=0)
 test_pred = test_prob.argmax(axis=1)
 
 sub = pd.DataFrame({"Id": np.arange(0, len(test_pred)), "change_type": test_pred})
-sub.to_csv("sample_submission.csv", index=False)
-print("Wrote sample_submission.csv")
+sub.to_csv("submission_solo/sample_submission_mlp.csv", index=False)
+print("Wrote sample_submission_mlp.csv")
 
 
 ## Final {"hidden_units": (256, 128), "dropout": 0.2, "lr": 1e-3,   "l2": 1e-5} ??
